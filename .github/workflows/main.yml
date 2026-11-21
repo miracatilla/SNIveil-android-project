@@ -5,6 +5,9 @@ on:
     branches: [ "main" ]
   workflow_dispatch: {}
 
+env:
+  ANDROID_SDK_ROOT: ${{ github.workspace }}/android-sdk
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -17,19 +20,31 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Set up Android SDK (API 35 / Android 15)
-        uses: android-actions/setup-android@v3
-
-      - name: Install platform + build-tools for API 35
+      # android-actions/setup-android is no longer reliable (it tries to
+      # install the long-removed legacy "tools" package and fails), so the
+      # SDK command-line tools are installed by hand here instead.
+      - name: Install Android SDK command-line tools
         run: |
-          sdkmanager "platforms;android-35" "build-tools;35.0.0"
+          mkdir -p "$ANDROID_SDK_ROOT/cmdline-tools"
+          cd "$ANDROID_SDK_ROOT/cmdline-tools"
+          curl -fsSL -o cmdline-tools.zip https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+          unzip -q cmdline-tools.zip
+          mv cmdline-tools latest
+          rm cmdline-tools.zip
 
-      # No gradlew wrapper is committed, so Gradle itself is provisioned here.
+      - name: Install platform, build-tools and platform-tools (API 35)
+        run: |
+          SDKMANAGER="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKMANAGER" --licenses > /dev/null || true
+          "$SDKMANAGER" "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
       - name: Build debug APK
         run: gradle assembleDebug --stacktrace
+        env:
+          ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
