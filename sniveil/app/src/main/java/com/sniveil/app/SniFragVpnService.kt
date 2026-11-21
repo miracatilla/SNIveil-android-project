@@ -191,7 +191,7 @@ class SniFragVpnService : VpnService() {
             val decoy = Socket()
             protect(decoy)
             val pfd = ParcelFileDescriptor.fromSocket(decoy)
-            Os.setsockopt(pfd.fileDescriptor, OsConstants.IPPROTO_IP, OsConstants.IP_TTL, decoyTtl)
+            Os.setsockoptInt(pfd.fileDescriptor, OsConstants.IPPROTO_IP, OsConstants.IP_TTL, decoyTtl)
             decoy.connect(InetSocketAddress(dstIp, dstPort), 1500)
             decoy.getOutputStream().write(TlsHello.buildFakeClientHello(fakeSni))
             decoy.getOutputStream().flush()
