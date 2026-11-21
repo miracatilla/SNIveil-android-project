@@ -190,6 +190,13 @@ class SniFragVpnService : VpnService() {
         try {
             val decoy = Socket()
             protect(decoy)
+            // Force the underlying native fd to exist before we touch it: a
+            // bare `Socket()` has no real fd until bind()/connect() runs, and
+            // ParcelFileDescriptor.fromSocket() on a fd-less socket fails
+            // with EBADF. bind(null) just grabs an ephemeral local port, it
+            // sends no packet, so the decoy's SYN is still the first thing
+            // that goes out — after the TTL below is already in place.
+            decoy.bind(InetSocketAddress(0))
             val pfd = ParcelFileDescriptor.fromSocket(decoy)
             Os.setsockoptInt(pfd.fileDescriptor, OsConstants.IPPROTO_IP, OsConstants.IP_TTL, decoyTtl)
             decoy.connect(InetSocketAddress(dstIp, dstPort), 1500)
