@@ -8,6 +8,13 @@ on:
 env:
   ANDROID_SDK_ROOT: ${{ github.workspace }}/android-sdk
 
+defaults:
+  run:
+    # The actual Gradle project (settings.gradle.kts, app/, etc.) lives in
+    # the "sniveil" subfolder of this repo, not at the repo root — so every
+    # plain shell step below runs from inside it.
+    working-directory: sniveil
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -24,6 +31,7 @@ jobs:
       # install the long-removed legacy "tools" package and fails), so the
       # SDK command-line tools are installed by hand here instead.
       - name: Install Android SDK command-line tools
+        working-directory: ${{ github.workspace }}
         run: |
           mkdir -p "$ANDROID_SDK_ROOT/cmdline-tools"
           cd "$ANDROID_SDK_ROOT/cmdline-tools"
@@ -33,6 +41,7 @@ jobs:
           rm cmdline-tools.zip
 
       - name: Install platform, build-tools and platform-tools (API 35)
+        working-directory: ${{ github.workspace }}
         run: |
           SDKMANAGER="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
           yes | "$SDKMANAGER" --licenses > /dev/null || true
@@ -40,6 +49,8 @@ jobs:
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
+        with:
+          build-root-directory: sniveil
 
       - name: Build debug APK
         run: gradle assembleDebug --stacktrace
@@ -50,4 +61,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: sniveil-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: sniveil/app/build/outputs/apk/debug/app-debug.apk
